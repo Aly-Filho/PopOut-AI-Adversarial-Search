@@ -22,14 +22,18 @@ PopOut-AI-Project/
 └── requirements.txt        # Project dependencies
 ```
 
-## :hourglass: Cronogram.
+## ⏳ Project Roadmap (9-Week Schedule)
 
-Week 1 - Foundation - Set up GitHub repo with .gitkeep files; Implement PopOut core rules (drop/pop).
-Week 2 - Game Engine -  Complete win condition logic and create a basic CLI/GUI for Human vs Human play.
-Week 3 - MCTS: Core - Implement the base Monte Carlo Tree Search algorithm and the UCT selection formula.
-Week 4 - MCTS: Engine - Refine the simulation/playout phase and optimize tree traversal performance.
-Week 5 - ID3: Logic - Develop the ID3 Decision Tree algorithm from scratch (handling Information Gain/Entropy).
-Week 6 - ID3: Training - Process the provided datasets and train the classifier to recognize game states.
-Week 7 - Integration -  Merge agents: Enable Human vs Computer and Computer vs Computer (MCTS vs DT) modes.
-Week 8 - Analysis -  Conduct rigorous performance evaluations and document results in Jupyter Notebooks.
-Week 9 - Final Review - Code cleanup, final documentation, and preparation for the group presentation.
+This schedule outlines the development phases to ensure the project is completed by the **May 17, 2026** deadline.
+
+| Week | Phase | Key Tasks & Milestones |
+| :--- | :--- | :--- |
+| **Week 1** | **Foundation** | Repository setup with `.gitkeep`; Implement PopOut core rules (drop/pop logic). |
+| **Week 2** | **Game Engine** | Complete win condition detection; Create CLI/GUI for Human vs Human play. |
+| **Week 3** | **MCTS - Core** | Implement the basic Monte Carlo Tree Search structure and the UCT formula. |
+| **Week 4** | **MCTS - Tuning** | Refine the simulation/playout phase and optimize tree traversal performance. |
+| **Week 5** | **ID3 - Logic** | Develop the ID3 Decision Tree algorithm from scratch (Information Gain/Entropy). |
+| **Week 6** | **ID3 - Training** | Data preprocessing; Train the classifier using the provided game state datasets. |
+| **Week 7** | **Integration** | Merge all agents: Human vs AI and AI vs AI (MCTS vs Decision Tree). |
+| **Week 8** | **Analysis** | Execute performance benchmarks; Document technical rigor in Jupyter Notebooks. |
+| **Week 9** | **Final Review** | Code cleanup; Finalize README; Prepare for the group presentation. |
