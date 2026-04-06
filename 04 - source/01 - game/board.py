@@ -1,11 +1,14 @@
-# 04 - source/01 - game/board.py
-
 class Board:
     def __init__(self, rows=6, cols=7):
         """Inicializa o tabuleiro vazio com as dimensões especificadas."""
         self.rows = rows
         self.cols = cols
         self.grid = [[' ' for _ in range(cols)] for _ in range(rows)]
+        self.current_player = 'X'
+
+    def switch_player(self):
+        """Alterna o jogador atual."""
+        self.current_player = 'O' if self.current_player == 'X' else 'X'
 
     def get_state(self):
         """Retorna uma tupla imutável do tabuleiro (ótimo para a Regra 3 e para a IA)."""
@@ -79,5 +82,34 @@ class Board:
     def copy(self):
         """Cria uma cópia profunda do tabuleiro. Essencial para a árvore do MCTS simular jogadas."""
         new_board = Board(self.rows, self.cols)
+        # Copia a matriz de forma rápida
         new_board.grid = [row[:] for row in self.grid]
+        # Copia também o estado de quem é a vez na simulação
+        new_board.current_player = self.current_player 
         return new_board
+    
+    def get_legal_moves(self):
+        """Retorna uma lista de movimentos legais no formato ('push', col) ou ('pop', col)."""
+        legal_moves = []
+        for col in range(self.cols):
+            # Verifica se pode fazer DROP (push)
+            if self.is_valid_drop(col):
+                legal_moves.append(("push", col))
+            
+            # Verifica se pode fazer POP com a peça do jogador atual
+            if self.is_valid_pop(col, self.current_player):
+                legal_moves.append(("pop", col))
+        
+        return legal_moves
+
+    def apply_move(self, move):
+        """Executa um movimento ('push' ou 'pop') e já passa a vez para o próximo."""
+        move_type, col = move
+        
+        if move_type == "push":
+            self.drop_piece(col, self.current_player)
+        elif move_type == "pop":
+            self.pop_piece(col)
+            
+        # Troca o turno automaticamente após aplicar a jogada
+        self.switch_player()

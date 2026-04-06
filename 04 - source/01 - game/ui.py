@@ -1,4 +1,3 @@
-# 04 - source/01 - game/ui.py
 import os
 import time
 
@@ -20,41 +19,35 @@ class UI:
 
     @staticmethod
     def animate_drop(board, col, final_row, piece):
-        """Anima a peça a cair pela coluna abaixo."""
+        """Anima a peça a cair pela coluna usando uma cópia visual temporária."""
+        temp_board = board.copy() # Cria um clone apenas para a animação
+        
         for r in range(final_row):
-            board.grid[r][col] = piece
+            temp_board.grid[r][col] = piece
             UI.clear_screen()
             print("Connect 4 - Dropping Piece...")
-            UI.print_board(board)
+            UI.print_board(temp_board)
             time.sleep(0.1) 
-            board.grid[r][col] = ' '
-        
-        # A peça assenta na sua posição final
-        board.grid[final_row][col] = piece
-        UI.clear_screen()
-        print("Connect 4 - Game in Progress...")
-        UI.print_board(board)
+            temp_board.grid[r][col] = ' '
+            
 
     @staticmethod
     def animate_pop(board, col):
-        """Anima a remoção da peça da base e a queda das restantes."""
-        board.grid[board.rows - 1][col] = ' '
+        """Anima a remoção da peça usando uma cópia visual temporária."""
+        temp_board = board.copy() # Cria um clone apenas para a animação
+        temp_board.grid[temp_board.rows - 1][col] = ' '
+        
         UI.clear_screen()
         print("Connect 4 - Popping Piece Out...")
-        UI.print_board(board)
+        UI.print_board(temp_board)
         time.sleep(0.4) 
         
-        for r in range(board.rows - 1, 0, -1):
-            if board.grid[r - 1][col] != ' ':
-                board.grid[r][col] = board.grid[r - 1][col]
-                board.grid[r - 1][col] = ' ' 
+        for r in range(temp_board.rows - 1, 0, -1):
+            if temp_board.grid[r - 1][col] != ' ':
+                temp_board.grid[r][col] = temp_board.grid[r - 1][col]
+                temp_board.grid[r - 1][col] = ' ' 
                 
                 UI.clear_screen()
                 print("Connect 4 - Pieces Falling...")
-                UI.print_board(board)
+                UI.print_board(temp_board)
                 time.sleep(0.2) 
-                
-        UI.clear_screen()
-        print("Connect 4 - Pieces Settled!")
-        UI.print_board(board)
-        time.sleep(0.2)

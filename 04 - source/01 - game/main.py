@@ -93,10 +93,9 @@ def main_menu():
             time.sleep(1)
 
 def play_game():
-    """A função principal do jogo com a nova lógica de dicionário para empates."""
+    """A função principal do jogo com a nova lógica de padronização de movimentos e empates."""
     board = Board()
     game_over = False
-    turn = 0
     
     # 1. Inicializa o histórico como um dicionário
     state_history = {} 
@@ -110,15 +109,17 @@ def play_game():
     UI.print_board(board)
 
     while not game_over:
-        piece = 'X' if turn == 0 else 'O'
-        player_name = "Player 1 (X)" if turn == 0 else "Player 2 (O)"
-        opponent_piece = 'O' if turn == 0 else 'X'
-        opponent_name = "Player 2 (O)" if turn == 0 else "Player 1 (X)"
+        # Agora o tabuleiro gerencia de quem é a vez
+        piece = board.current_player
+        player_name = "Player 1 (X)" if piece == 'X' else "Player 2 (O)"
+        opponent_piece = 'O' if piece == 'X' else 'X'
+        opponent_name = "Player 2 (O)" if piece == 'X' else "Player 1 (X)"
 
-        board_full = board.is_full()
+        # Obtém a lista unificada de jogadas permitidas no estado atual
+        legal_moves = board.get_legal_moves()
 
         try:
-            if board_full:
+            if board.is_full():
                 choice = input(f"⚠️ BOARD FULL! {player_name}, type 'p1'-'p7' to pop, or 'draw' to end: ").strip().lower()
                 if choice == 'draw':
                     print("Game declared a draw by mutual agreement!")
@@ -130,11 +131,14 @@ def play_game():
             else:
                 choice = input(f"{player_name}, enter 1-7 to drop, or 'p1'-'p7' to pop: ").strip().lower()
             
+            # Traduz o input humano para a linguagem da IA (tupla de movimento)
             is_pop = choice.startswith('p')
             if is_pop:
                 col = int(choice[1:]) - 1
+                move = ("pop", col)
             else:
                 col = int(choice) - 1
+                move = ("push", col)
 
         except ValueError:
             print("Invalid input. Please try again.")
@@ -144,52 +148,44 @@ def play_game():
             print("Invalid column. Choose a number between 1 and 7.")
             continue
 
-        if is_pop:
-            if board.is_valid_pop(col, piece):
-                UI.animate_pop(board, col)
-                
-                current_player_wins = board.check_win(piece)
-                opponent_wins = board.check_win(opponent_piece)
-                
-                if current_player_wins and opponent_wins:
-                    print(f"Wow! Both aligned 4. By Rule 1, the popping player ({player_name}) is the winner!")
-                    game_over = True
-                elif current_player_wins:
-                    print(f"🎉 Congratulations! {player_name} wins the game!")
-                    game_over = True
-                elif opponent_wins:
-                    print(f"Oops! You helped {opponent_name} win!")
-                    game_over = True
-                
-                turn += 1
-                turn = turn % 2
-            else:
-                print("❌ Invalid pop. You can only pop your OWN piece from the VERY BOTTOM.")
-                continue 
-        
-        else:
-            if board.is_valid_drop(col):
-                row = board.get_next_open_row(col)
-                UI.animate_drop(board, col, row, piece)
+        # Verificação padronizada: se não está na lista de legais, recusa
+        if move not in legal_moves:
+            print("❌ Invalid move! The column is full, or you don't own the bottom piece.")
+            continue
 
-                if board.check_win(piece):
-                    print(f"🎉 Congratulations! {player_name} wins the game!")
-                    game_over = True
+        # Execução visual e lógica do movimento
+        if move[0] == "pop":
+            UI.animate_pop(board, col) # O UI do Pop altera a matriz visualmente
+            
+            current_player_wins = board.check_win(piece)
+            opponent_wins = board.check_win(opponent_piece)
+            
+            if current_player_wins and opponent_wins:
+                print(f"Wow! Both aligned 4. By Rule 1, the popping player ({player_name}) is the winner!")
+                game_over = True
+            elif current_player_wins:
+                print(f"🎉 Congratulations! {player_name} wins the game!")
+                game_over = True
+            elif opponent_wins:
+                print(f"Oops! You helped {opponent_name} win!")
+                game_over = True
+                
+        elif move[0] == "push":
+            row = board.get_next_open_row(col)
+            UI.animate_drop(board, col, row, piece) # O UI do Drop altera a matriz visualmente
 
-                turn += 1
-                turn = turn % 2
-            else:
-                print("❌ This column is full. Please choose another one.")
-                continue 
+            if board.check_win(piece):
+                print(f"🎉 Congratulations! {player_name} wins the game!")
+                game_over = True
+
+        # Troca o jogador no tabuleiro
+        board.switch_player()
         
         # 3. Nova lógica de registro de estado no dicionário
         if not game_over:
             current_state = board.get_state()
-            
-            # Adiciona 1 à contagem deste estado específico. Se não existir, começa do 0 e soma 1.
             state_history[current_state] = state_history.get(current_state, 0) + 1
             
-            # Se o estado atingiu 3 repetições
             if state_history[current_state] >= 3:
                 print("\n⚠️ THREEFOLD REPETITION DETECTED ⚠️")
                 draw_choice = input("Either player can declare a draw. Type 'draw' to end, or press Enter to continue: ").strip().lower()
@@ -197,7 +193,6 @@ def play_game():
                     print("Game drawn due to threefold repetition!")
                     game_over = True
 
-    # Quando o jogo acaba, pede para pressionar Enter para voltar ao menu
     input("\nPress Enter to return to the play menu...")
 
 if __name__ == "__main__":
