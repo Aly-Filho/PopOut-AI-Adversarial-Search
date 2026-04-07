@@ -4,7 +4,7 @@ import time
 class UI:
     @staticmethod
     def clear_screen():
-        """Limpa o ecrã do terminal para a animação."""
+        """Limpa o ecrã do terminal."""
         os.system('cls' if os.name == 'nt' else 'clear')
 
     @staticmethod
@@ -18,28 +18,31 @@ class UI:
         print()
 
     @staticmethod
+    def render(board, message="Connect 4 - Pop Out Variant."):
+        """Centraliza a atualização do ecrã: limpa, mostra mensagem e imprime o tabuleiro."""
+        UI.clear_screen()
+        # Como o message agora tem um valor padrão, imprimimos sempre algo no topo.
+        print(message)
+        UI.print_board(board)
+
+    @staticmethod
     def animate_drop(board, col, final_row, piece):
         """Anima a peça a cair pela coluna usando uma cópia visual temporária."""
-        temp_board = board.copy() # Cria um clone apenas para a animação
+        temp_board = board.copy() 
         
         for r in range(final_row):
             temp_board.grid[r][col] = piece
-            UI.clear_screen()
-            print("Connect 4 - Dropping Piece...")
-            UI.print_board(temp_board)
+            UI.render(temp_board, "Connect 4 - Dropping Piece...")
             time.sleep(0.1) 
             temp_board.grid[r][col] = ' '
             
-
     @staticmethod
     def animate_pop(board, col):
         """Anima a remoção da peça usando uma cópia visual temporária."""
-        temp_board = board.copy() # Cria um clone apenas para a animação
+        temp_board = board.copy() 
         temp_board.grid[temp_board.rows - 1][col] = ' '
         
-        UI.clear_screen()
-        print("Connect 4 - Popping Piece Out...")
-        UI.print_board(temp_board)
+        UI.render(temp_board, "Connect 4 - Popping Piece Out...")
         time.sleep(0.4) 
         
         for r in range(temp_board.rows - 1, 0, -1):
@@ -47,7 +50,5 @@ class UI:
                 temp_board.grid[r][col] = temp_board.grid[r - 1][col]
                 temp_board.grid[r - 1][col] = ' ' 
                 
-                UI.clear_screen()
-                print("Connect 4 - Pieces Falling...")
-                UI.print_board(temp_board)
-                time.sleep(0.2) 
+                UI.render(temp_board, "Connect 4 - Pieces Falling...")
+                time.sleep(0.2)

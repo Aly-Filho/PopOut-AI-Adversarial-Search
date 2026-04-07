@@ -1,8 +1,8 @@
-# 04 - source/01 - game/main.py
 from board import Board
 from ui import UI
 import sys
 import time
+from models.mcts import *
 
 def display_rules():
     UI.clear_screen()
@@ -51,15 +51,13 @@ def play_menu():
         choice = input("Select an option (1-4): ").strip()
 
         if choice == '1':
-            play_game() # Inicia o jogo normal
+            play_game("Human", "Human")
         elif choice == '2':
-            print("\n🤖 AI integration is coming soon!")
-            time.sleep(2)
+            play_game("Human", "AI")
         elif choice == '3':
-            print("\n🤖 AI vs AI is coming soon!")
-            time.sleep(2)
+            play_game("AI", "AI")
         elif choice == '4':
-            break # Sai do loop e volta ao menu principal
+            break #Goes back to the main menu.
         else:
             print("\n❌ Invalid choice! Please select 1, 2, 3, or 4.")
             time.sleep(1)
@@ -92,70 +90,110 @@ def main_menu():
             print("\n❌ Invalid choice! Please select 1, 2, 3, or 4.")
             time.sleep(1)
 
-def play_game():
-    """A função principal do jogo com a nova lógica de padronização de movimentos e empates."""
+def play_game(player1_type, player2_type):
+
+    #1. Creation of the game.
     board = Board()
     game_over = False
     
-    # 1. Inicializa o histórico como um dicionário
+    #2. Create the empty log of states.
     state_history = {} 
     
-    # 2. Registra o estado inicial (tabuleiro vazio) com valor 1
+    #3. Register the initial state in the log of states.
     initial_state = board.get_state()
     state_history[initial_state] = 1
 
     UI.clear_screen()
-    print("Starting Match: Human vs Human!")
-    UI.print_board(board)
+    print(f"Starting Match: {player1_type} vs {player2_type}!")
+    UI.render(board) # Usa já o novo método de renderização!
 
     while not game_over:
-        # Agora o tabuleiro gerencia de quem é a vez
+  
+        # 4. The class board holds the current player.
         piece = board.current_player
         player_name = "Player 1 (X)" if piece == 'X' else "Player 2 (O)"
         opponent_piece = 'O' if piece == 'X' else 'X'
         opponent_name = "Player 2 (O)" if piece == 'X' else "Player 1 (X)"
+        
+        # Correção do pequeno erro de digitação (== para =)
+        if piece == 'X':
+            current_player = player1_type
+        else:
+            current_player = player2_type
 
-        # Obtém a lista unificada de jogadas permitidas no estado atual
+        # 5. THE THREEFOLD REPETITION CHECK (No início do turno!)
+        current_state = board.get_state()
+        if state_history.get(current_state, 0) >= 3:
+            print("\n⚠️ THREEFOLD REPETITION DETECTED ⚠️")
+            if current_player == "Human":
+                draw_choice = input(f"This board state has occurred 3 times. {player_name}, type 'draw' to end, or press Enter to play: ").strip().lower()
+                if draw_choice == 'draw':
+                    print("Game drawn due to threefold repetition!")
+                    game_over = True
+                    break
+            else:
+                # Se for a IA, futuramente o teu MCTS decidirá se pede empate ou não.
+                # Por agora, avisamos que a IA detetou a repetição e continua.
+                print(f"{player_name} (AI) noted the threefold repetition...")
+                time.sleep(1.5)
+
+
+        # Get the list of possible moves.
         legal_moves = board.get_legal_moves()
 
         try:
-            if board.is_full():
-                choice = input(f"⚠️ BOARD FULL! {player_name}, type 'p1'-'p7' to pop, or 'draw' to end: ").strip().lower()
-                if choice == 'draw':
-                    print("Game declared a draw by mutual agreement!")
-                    game_over = True
-                    break
-                if not choice.startswith('p'):
-                    print("Invalid input. The board is full, you MUST pop or draw.")
-                    continue
+            if current_player == "Human":
+                if board.is_full():
+                    choice = input(f"⚠️ BOARD FULL! {player_name}, type 'p1'-'p7' to pop, or 'draw' to end: ").strip().lower()
+                    if choice == 'draw':
+                        print(f"Game declared a draw by {player_name}!")
+                        game_over = True
+                        break
+                    if not choice.startswith('p'):
+                        print("Invalid input. The board is full, you MUST pop or draw.")
+                        continue
+                    
+                    col = int(choice[1:]) - 1
+                    move = ("pop", col)
+                    
+                else:
+                    choice = input(f"{player_name}, enter 1-7 to drop, or 'p1'-'p7' to pop: ").strip().lower()
+                    
+                    if choice.startswith('p'):
+                        col = int(choice[1:]) - 1
+                        move = ("pop", col)
+                    else:
+                        col = int(choice) - 1
+                        move = ("push", col)
+                        
             else:
-                choice = input(f"{player_name}, enter 1-7 to drop, or 'p1'-'p7' to pop: ").strip().lower()
-            
-            # Traduz o input humano para a linguagem da IA (tupla de movimento)
-            is_pop = choice.startswith('p')
-            if is_pop:
-                col = int(choice[1:]) - 1
-                move = ("pop", col)
-            else:
-                col = int(choice) - 1
-                move = ("push", col)
+                if player1_type == "AI" and player2_type == "AI":
+                    ai_name = "AI 1" if piece == 'X' else "AI 2"
+                else:
+                    ai_name = "AI"
+                
+                UI.render(board, f"🤖 {ai_name} ({piece}) is thinking...")
+                
+                move = mcts_best_move(board) 
+                col = move[1]
 
         except ValueError:
             print("Invalid input. Please try again.")
             continue
-
+            
         if col < 0 or col > 6:
             print("Invalid column. Choose a number between 1 and 7.")
             continue
-
-        # Verificação padronizada: se não está na lista de legais, recusa
         if move not in legal_moves:
             print("❌ Invalid move! The column is full, or you don't own the bottom piece.")
             continue
 
-        # Execução visual e lógica do movimento
+
+        # Updating the board for POP.
         if move[0] == "pop":
-            UI.animate_pop(board, col) # O UI do Pop altera a matriz visualmente
+            UI.animate_pop(board, col)
+            board.pop_piece(col) # Atualiza o estado real
+            UI.render(board)     # Mostra o tabuleiro final após o pop
             
             current_player_wins = board.check_win(piece)
             opponent_wins = board.check_win(opponent_piece)
@@ -169,31 +207,31 @@ def play_game():
             elif opponent_wins:
                 print(f"Oops! You helped {opponent_name} win!")
                 game_over = True
-                
+
+        # Updating the board for PUSH.        
         elif move[0] == "push":
             row = board.get_next_open_row(col)
-            UI.animate_drop(board, col, row, piece) # O UI do Drop altera a matriz visualmente
+            UI.animate_drop(board, col, row, piece)
+            board.drop_piece(col, piece) # Atualiza o estado real
+            UI.render(board)             # Mostra o tabuleiro final após o drop
 
             if board.check_win(piece):
                 print(f"🎉 Congratulations! {player_name} wins the game!")
                 game_over = True
 
-        # Troca o jogador no tabuleiro
-        board.switch_player()
+        # --- GESTÃO DE FIM DE TURNO ---
         
-        # 3. Nova lógica de registro de estado no dicionário
         if not game_over:
-            current_state = board.get_state()
-            state_history[current_state] = state_history.get(current_state, 0) + 1
+            # 1. Regista o novo estado para a verificação na próxima iteração
+            new_state = board.get_state()
+            state_history[new_state] = state_history.get(new_state, 0) + 1
             
-            if state_history[current_state] >= 3:
-                print("\n⚠️ THREEFOLD REPETITION DETECTED ⚠️")
-                draw_choice = input("Either player can declare a draw. Type 'draw' to end, or press Enter to continue: ").strip().lower()
-                if draw_choice == 'draw':
-                    print("Game drawn due to threefold repetition!")
-                    game_over = True
+            # 2. Passa a vez
+            board.switch_player()
+        # Se game_over for True, o ciclo termina e as mensagens de vitória já foram impressas.
 
     input("\nPress Enter to return to the play menu...")
 
+
 if __name__ == "__main__":
-    main_menu() # O ponto de entrada agora é o menu principal!
+    main_menu()
