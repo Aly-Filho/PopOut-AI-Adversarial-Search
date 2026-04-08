@@ -103,9 +103,10 @@ def play_game(player1_type, player2_type):
     initial_state = board.get_state()
     state_history[initial_state] = 1
 
+    #this part is only for the U.I
     UI.clear_screen()
     print(f"Starting Match: {player1_type} vs {player2_type}!")
-    UI.render(board) # Usa já o novo método de renderização!
+    UI.render(board)
 
     while not game_over:
   
@@ -114,14 +115,12 @@ def play_game(player1_type, player2_type):
         player_name = "Player 1 (X)" if piece == 'X' else "Player 2 (O)"
         opponent_piece = 'O' if piece == 'X' else 'X'
         opponent_name = "Player 2 (O)" if piece == 'X' else "Player 1 (X)"
-        
-        # Correção do pequeno erro de digitação (== para =)
         if piece == 'X':
             current_player = player1_type
         else:
             current_player = player2_type
 
-        # 5. THE THREEFOLD REPETITION CHECK (No início do turno!)
+        # 5. THE THREEFOLD REPETITION CHECK
         current_state = board.get_state()
         if state_history.get(current_state, 0) >= 3:
             print("\n⚠️ THREEFOLD REPETITION DETECTED ⚠️")
@@ -132,8 +131,7 @@ def play_game(player1_type, player2_type):
                     game_over = True
                     break
             else:
-                # Se for a IA, futuramente o teu MCTS decidirá se pede empate ou não.
-                # Por agora, avisamos que a IA detetou a repetição e continua.
+                ####É necessário verificar a heurística para nossa IA detectar um impate, não sei como mas iremos descobrir.###
                 print(f"{player_name} (AI) noted the threefold repetition...")
                 time.sleep(1.5)
 
@@ -142,7 +140,7 @@ def play_game(player1_type, player2_type):
         legal_moves = board.get_legal_moves()
 
         try:
-            if current_player == "Human":
+            if current_player == "Human": #Move by Human.
                 if board.is_full():
                     choice = input(f"⚠️ BOARD FULL! {player_name}, type 'p1'-'p7' to pop, or 'draw' to end: ").strip().lower()
                     if choice == 'draw':
@@ -166,7 +164,7 @@ def play_game(player1_type, player2_type):
                         col = int(choice) - 1
                         move = ("push", col)
                         
-            else:
+            else: #Move by AI.
                 if player1_type == "AI" and player2_type == "AI":
                     ai_name = "AI 1" if piece == 'X' else "AI 2"
                 else:
@@ -177,6 +175,7 @@ def play_game(player1_type, player2_type):
                 move = mcts_best_move(board) 
                 col = move[1]
 
+        #Error checks for invalid inputs by Human.
         except ValueError:
             print("Invalid input. Please try again.")
             continue
@@ -191,9 +190,9 @@ def play_game(player1_type, player2_type):
 
         # Updating the board for POP.
         if move[0] == "pop":
-            UI.animate_pop(board, col)
-            board.pop_piece(col) # Atualiza o estado real
-            UI.render(board)     # Mostra o tabuleiro final após o pop
+            UI.animate_pop(board, col) #Call the UI function to animate de drop.
+            board.pop_piece(col) # Actually update the state of the board.
+            UI.render(board)     # Show the updated board on terminal.
             
             current_player_wins = board.check_win(piece)
             opponent_wins = board.check_win(opponent_piece)
@@ -211,24 +210,20 @@ def play_game(player1_type, player2_type):
         # Updating the board for PUSH.        
         elif move[0] == "push":
             row = board.get_next_open_row(col)
-            UI.animate_drop(board, col, row, piece)
-            board.drop_piece(col, piece) # Atualiza o estado real
-            UI.render(board)             # Mostra o tabuleiro final após o drop
+            UI.animate_drop(board, col, row, piece) #Call the UI function to animate de drop
+            board.drop_piece(col, piece) # Actually update the state of the board.
+            UI.render(board)             # Show the updated board on terminal.
 
             if board.check_win(piece):
                 print(f"🎉 Congratulations! {player_name} wins the game!")
                 game_over = True
 
-        # --- GESTÃO DE FIM DE TURNO ---
-        
+        #Update our dictionary for the states of the game and move to the next player.
         if not game_over:
-            # 1. Regista o novo estado para a verificação na próxima iteração
             new_state = board.get_state()
             state_history[new_state] = state_history.get(new_state, 0) + 1
             
-            # 2. Passa a vez
             board.switch_player()
-        # Se game_over for True, o ciclo termina e as mensagens de vitória já foram impressas.
 
     input("\nPress Enter to return to the play menu...")
 
