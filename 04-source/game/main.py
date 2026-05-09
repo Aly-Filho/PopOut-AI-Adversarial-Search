@@ -44,15 +44,15 @@ def select_ai_menu(player_label):
         print(f"\n===================================")
         print(f" Select Algorithm for {player_label} ")
         print(f"===================================")
-        print(" 1 - MCTS Heurístico (Standard)")
-        print(" 2 - MCTS Vanilla (Sem Heurísticas)")
+        print(" 1 - MCTS Heuristic (With heuristics and optimizations)")
+        print(" 2 - MCTS Vanilla (Standard)")
         print(" 3 - MCTS Multi-Expansion (N-Children)")
         print("===================================")
         
         choice = input("Choice (1-3): ").strip()
         
         if choice == '1':
-            return mcts_best_move, "MCTS Heurístico"
+            return mcts_best_move, "MCTS Heuristic"
         elif choice == '2':
             return mcts_vanilla_best_move, "MCTS Vanilla"
         elif choice == '3':
