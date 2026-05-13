@@ -6,49 +6,9 @@ from models.mcts_heuristics import mcts_best_move
 from models.mcts_vanilla import mcts_vanilla_best_move
 from models.mcts_multi import mcts_multi_expansion_best_move
 
-def display_rules():
-    UI.clear_screen()
-    print("===============================================================")
-    print("                      POPOUT - RULES                           ")
-    print("===============================================================")
-    print("1. Standard Connect 4 rules apply: get 4 pieces in a row")
-    print("   (horizontal, vertical, or diagonal) to win.")
-    print("2. DROP: On your turn, you can drop a piece into the top of")
-    print("   any column that is not full.")
-    print("3. POP OUT: Instead of dropping, you can choose to remove")
-    print("   (pop) one of YOUR OWN pieces from the VERY BOTTOM of a")
-    print("   column. The pieces above it will drop down one space.")
-    print("4. SIMULTANEOUS WIN (Rule 1): If popping a piece creates a")
-    print("   win for both players, the player who popped the piece wins!")
-    print("5. FULL BOARD (Rule 2): If the board is completely full, the")
-    print("   current player must either pop a piece or declare a draw.")
-    print("6. THREEFOLD REPETITION (Rule 3): If the exact same board state")
-    print("   occurs 3 times, either player can declare a draw.")
-    print("===============================================================")
-    input("\nPress Enter to return to the main menu...")
-
-def display_credits():
-    UI.clear_screen()
-    print("===============================================================")
-    print("                        CREDITS                                ")
-    print("===============================================================")
-    print(" Game developed by: Aly, Rafael and Victor.")
-    print(" Variant: PopOut (Official Rules)")
-    print(" Course/Context: Artificial Intelligence & Data Science")
-    print("===============================================================")
-    input("\nPress Enter to return to the main menu...")
-
-# ---- NOVO MENU DE SELEÇÃO DE IA ----
 def select_ai_menu(player_label):
     while True:
-        print(f"\n===================================")
-        print(f" Select Algorithm for {player_label} ")
-        print(f"===================================")
-        print(" 1 - MCTS Heuristic (With heuristics and optimizations)")
-        print(" 2 - MCTS Vanilla (Standard)")
-        print(" 3 - MCTS Multi-Expansion (N-Children)")
-        print("===================================")
-        
+        UI.display_ai_menu(player_label)
         choice = input("Choice (1-3): ").strip()
         
         if choice == '1':
@@ -62,26 +22,15 @@ def select_ai_menu(player_label):
 
 def play_menu():
     while True:
-        UI.clear_screen()
-        print("===================================")
-        print("           SELECT MODE             ")
-        print("===================================")
-        print(" 1 - Human Vs Human")
-        print(" 2 - Human vs AI")
-        print(" 3 - AI vs AI")
-        print(" 4 - Back")
-        print("===================================")
-        
+        UI.display_play_menu()
         choice = input("Select an option (1-4): ").strip()
 
         if choice == '1':
             play_game("Human", "Human")
         elif choice == '2':
-            # Pergunta qual IA vai jogar contra o Humano
             ai_func, ai_name = select_ai_menu("the AI")
             play_game("Human", "AI", p2_func=ai_func, p2_name=ai_name)
         elif choice == '3':
-            # Pergunta qual IA será o Player 1 e qual será o Player 2
             UI.clear_screen()
             ai1_func, ai1_name = select_ai_menu("AI 1 (X)")
             ai2_func, ai2_name = select_ai_menu("AI 2 (O)")
@@ -94,24 +43,17 @@ def play_menu():
 
 def main_menu():
     while True:
-        UI.clear_screen()
-        print("===================================")
-        print("  Welcome to PopOut on terminal!   ")
-        print("===================================")
-        print(" 1 - Play")
-        print(" 2 - Rules")
-        print(" 3 - Credits")
-        print(" 4 - Exit Game")
-        print("===================================")
-        
+        UI.display_main_menu()
         choice = input("Select an option (1-4): ").strip()
 
         if choice == '1':
             play_menu()
         elif choice == '2':
-            display_rules()
+            UI.display_rules()
+            UI.wait_for_enter()
         elif choice == '3':
-            display_credits()
+            UI.display_credits()
+            UI.wait_for_enter()
         elif choice == '4':
             UI.clear_screen()
             print("Thanks for playing! Goodbye.\n")
@@ -120,9 +62,7 @@ def main_menu():
             print("\n❌ Invalid choice! Please select 1, 2, 3, or 4.")
             time.sleep(1)
 
-# ---- FUNÇÃO PLAY_GAME ADAPTADA PARA RECEBER AS FUNÇÕES DE IA ----
 def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_func=None, p2_name="Player 2"):
-
     board = Board()
     game_over = False
     
@@ -132,7 +72,6 @@ def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_f
 
     UI.clear_screen()
     
-    # Formatação bonita dos nomes de quem vai jogar
     p1_display = "Human" if player1_type == "Human" else p1_name
     p2_display = "Human" if player2_type == "Human" else p2_name
     print(f"Starting Match: {p1_display} (X) vs {p2_display} (O)!")
@@ -140,11 +79,9 @@ def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_f
     UI.render(board)
 
     while not game_over:
-  
         piece = board.current_player
         opponent_piece = 'O' if piece == 'X' else 'X'
         
-        # Define quem está a jogar neste momento
         if piece == 'X':
             current_player_type = player1_type
             current_player_display = f"{p1_display} (X)"
@@ -166,7 +103,6 @@ def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_f
                     game_over = True
                     break
             else:
-                # O computador reconhece a repetição (pode-se adicionar lógica heurística aqui depois)
                 print(f"🤖 {current_player_display} noted the threefold repetition...")
                 time.sleep(1.5)
 
@@ -198,10 +134,7 @@ def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_f
                         move = ("push", col)
                         
             else: 
-                # ---- EXECUÇÃO DINÂMICA DA IA ESCOLHIDA ----
                 UI.render(board, f"🤖 {current_player_display} is thinking...")
-                
-                # Chama o algoritmo exato que foi passado nos parâmetros
                 move = current_ai_func(board) 
                 col = move[1]
 
@@ -247,10 +180,9 @@ def play_game(player1_type, player2_type, p1_func=None, p1_name="Player 1", p2_f
         if not game_over:
             new_state = board.get_state()
             state_history[new_state] = state_history.get(new_state, 0) + 1
-            
             board.switch_player()
 
-    input("\nPress Enter to return to the play menu...")
+    UI.wait_for_enter("\nPress Enter to return to the play menu...")
 
 if __name__ == "__main__":
     main_menu()

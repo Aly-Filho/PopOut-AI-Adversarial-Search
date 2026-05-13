@@ -41,9 +41,23 @@ def calculate_information_gain(df, feature_name, target_name):
 # ==========================================
 
 def discretize_features(df, features):
+    """
+    Discretiza features contínuas dividindo-as em 3 categorias quantílicas
+    e imprime os valores de fronteira para justificar as decisões no relatório.
+    """
     df_discrete = df.copy()
+    print("\n--- Limites de Discretização (Valores de Corte) ---")
+    
     for col in features:
-        df_discrete[col] = pd.qcut(df[col], q=3, labels=['Baixo', 'Médio', 'Alto'], duplicates='drop')
+        # retbins=True devolve os valores numéricos onde os cortes foram feitos
+        df_discrete[col], bins = pd.qcut(df[col], q=3, labels=['Baixo', 'Médio', 'Alto'], retbins=True, duplicates='drop')
+        
+        print(f"Feature: '{col}'")
+        print(f"  - Baixo: valores entre {bins[0]:.2f} e {bins[1]:.2f}")
+        print(f"  - Médio: valores maiores que {bins[1]:.2f} até {bins[2]:.2f}")
+        print(f"  - Alto:  valores maiores que {bins[2]:.2f} até {bins[3]:.2f}\n")
+        
+    print("---------------------------------------------------")
     return df_discrete
 
 # ==========================================
