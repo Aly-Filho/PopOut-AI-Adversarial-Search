@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
+import matplotlib.pyplot as plt
 
 # ==========================================
 # 1. FUNÇÕES MATEMÁTICAS (ENTROPIA E GANHO)
@@ -85,7 +86,76 @@ def predict_sample(tree, sample, default_class="Desconhecido"):
     else:
         return default_class
 
-def print_tree(tree, indent=""):
+# ==========================================
+# FUNÇÕES DE VISUALIZAÇÃO DA ÁRVORE
+# ==========================================
+
+def _get_tree_depth(tree):
+    """Calculates the maximum depth of the tree for plotting dimensions."""
+    if not isinstance(tree, dict): return 1
+    return 1 + max(_get_tree_depth(v) for v in next(iter(tree.values())).values())
+
+def _get_tree_width(tree):
+    """Calculates the number of leaf nodes to determine plotting width."""
+    if not isinstance(tree, dict): return 1
+    return sum(_get_tree_width(v) for v in next(iter(tree.values())).values())
+
+def _draw_node(ax, text, center, parent, edge_label):
+    """Draws a single node and its connecting edge."""
+    # Styling for feature nodes vs prediction leaf nodes
+    if "Previsão:" in text:
+        bbox_props = dict(boxstyle="round,pad=0.4", fc="#d9f2d9", ec="#006600", lw=1.5)
+    else:
+        bbox_props = dict(boxstyle="round,pad=0.4", fc="#e6f2ff", ec="#004d99", lw=1.5)
+        
+    ax.text(center[0], center[1], text, ha="center", va="center", bbox=bbox_props, zorder=3, fontsize=10)
+    
+    # Draw edge and label if it's not the root node
+    if parent is not None:
+        ax.plot([parent[0], center[0]], [parent[1], center[1]], color="#666666", lw=1.5, zorder=1)
+        mid_x = (parent[0] + center[0]) / 2
+        mid_y = (parent[1] + center[1]) / 2
+        ax.text(mid_x, mid_y, edge_label, ha="center", va="center", 
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.9), zorder=2, fontsize=9, color="#cc0000")
+
+def _draw_tree_recursive(ax, tree, center, parent, edge_label, width, depth_step):
+    """Recursively traverses the tree to draw nodes at calculated coordinates."""
+    if not isinstance(tree, dict):
+        _draw_node(ax, f"Previsão:\n{tree}", center, parent, edge_label)
+        return
+    
+    root_node = next(iter(tree))
+    _draw_node(ax, root_node, center, parent, edge_label)
+    
+    branches = tree[root_node]
+    num_branches = len(branches)
+    
+    child_y = center[1] - depth_step
+    start_x = center[0] - width / 2
+    
+    current_x = start_x
+    for val, subtree in branches.items():
+        # Apportion width based on the size of each subtree
+        child_width = _get_tree_width(subtree) * (width / _get_tree_width(tree)) if _get_tree_width(tree) > 0 else width / num_branches
+        child_x = current_x + child_width / 2
+        _draw_tree_recursive(ax, subtree, (child_x, child_y), center, str(val), child_width, depth_step)
+        current_x += child_width
+
+def _plot_tree_graph(tree):
+    """Sets up the matplotlib figure and triggers the recursive drawing."""
+    fig, ax = plt.subplots(figsize=(14, 8))
+    ax.axis('off')
+    
+    depth = _get_tree_depth(tree)
+    depth_step = 1.0 / depth if depth > 1 else 0.5
+    
+    _draw_tree_recursive(ax, tree, center=(0.5, 1.0), parent=None, edge_label="", width=1.0, depth_step=depth_step)
+    
+    plt.tight_layout()
+    plt.show()
+
+def print_tree_terminal(tree, indent=""):
+    """Original function to print the tree in the terminal."""
     if not isinstance(tree, dict):
         print(f"-> Previsão: {tree}")
         return
@@ -100,20 +170,22 @@ def print_tree(tree, indent=""):
         print(f"{indent}{prefix}{value} ", end="")
         
         next_indent = indent + ("    " if is_last else "│   ")
-        print_tree(subtree, next_indent)
+        print_tree_terminal(subtree, next_indent)
+
+def display_tree(tree, mode="terminal"):
+    """
+    Main controller for displaying the tree.
+    :param mode: 'terminal', 'plot', or 'both'
+    """
+    if mode in ["terminal", "both"]:
+        print_tree_terminal(tree)
+    
+    if mode in ["plot", "both"]:
+        _plot_tree_graph(tree)
 
 # ==========================================
 # 3. FUNÇÕES UTILITÁRIAS & INTERATIVIDADE
 # ==========================================
-
-def discretize_features(df, features):
-    df_discrete = df.copy()
-    print("\n--- Limites de Discretização (Valores de Corte) ---")
-    for col in features:
-        df_discrete[col], bins = pd.qcut(df[col], q=3, labels=['Baixo', 'Médio', 'Alto'], retbins=True, duplicates='drop')
-        print(f"Feature: '{col}' | Baixo: <= {bins[1]:.2f} | Médio: <= {bins[2]:.2f} | Alto: <= {bins[3]:.2f}")
-    print("---------------------------------------------------")
-    return df_discrete
 
 def custom_train_test_split(df, test_size=0.3):
     df_shuffled = df.sample(frac=1, random_state=42).reset_index(drop=True)
@@ -142,35 +214,35 @@ def parse_depths(depth_str):
 # 4. MOTOR DE TREINO EM MASSA
 # ==========================================
 
-def treinar_e_avaliar(nome_dataset, train_df, test_df, features, target, depths_to_test, print_trees):
+def train_and_evaluate(dataset_name, train_df, test_df, features, target, depths_to_test, display_mode):
     most_common = train_df[target].mode()[0]
     y_true_train = train_df[target].tolist()
     y_true_test = test_df[target].tolist()
     
     print(f"\n{'='*50}")
-    print(f" INICIANDO AVALIAÇÃO - DATASET {nome_dataset}")
+    print(f" INICIANDO AVALIAÇÃO - DATASET {dataset_name}")
     print(f"{'='*50}")
     
-    for prof in depths_to_test:
-        label_prof = prof if prof is not None else "Sem Limite (None)"
-        print(f"\n⚙️ A treinar árvore com max_depth = {label_prof}...")
+    for depth in depths_to_test:
+        depth_label = depth if depth is not None else "Sem Limite (None)"
+        print(f"\n⚙️ A treinar árvore com max_depth = {depth_label}...")
         
-        tree = build_id3_tree(train_df, features, target, max_depth=prof)
+        tree = build_id3_tree(train_df, features, target, max_depth=depth)
         
-        if print_trees:
-            print(f"\n--- ESTRUTURA DA ÁRVORE (Profundidade: {label_prof}) ---")
-            print_tree(tree)
+        if display_mode != 'none':
+            print(f"\n--- ESTRUTURA DA ÁRVORE (Profundidade: {depth_label}) ---")
+            display_tree(tree, mode=display_mode)
             print("-" * 50)
         
-        # Avaliar Treino
+        # Evaluate Train
         y_pred_train = [predict_sample(tree, row, most_common) for _, row in train_df.iterrows()]
         acc_train = calculate_accuracy(y_true_train, y_pred_train)
         
-        # Avaliar Teste
+        # Evaluate Test
         y_pred_test = [predict_sample(tree, row, most_common) for _, row in test_df.iterrows()]
         acc_test = calculate_accuracy(y_true_test, y_pred_test)
         
-        print(f"🎯 RESULTADOS (Max Depth: {label_prof}):")
+        print(f"🎯 RESULTADOS (Max Depth: {depth_label}):")
         print(f"  -> Accuracy no Treino: {acc_train * 100:.2f}%")
         print(f"  -> Accuracy no Teste:  {acc_test * 100:.2f}%")
 
@@ -178,62 +250,73 @@ def treinar_e_avaliar(nome_dataset, train_df, test_df, features, target, depths_
 # 5. LÓGICA DE EXECUÇÃO DOS MODELOS
 # ==========================================
 
-def executar_modelo(nome_dataset, df, features, target):
-    # Divisão de dados (70/30 para Iris, 80/20 para Popout)
-    test_size = 0.3 if nome_dataset == "IRIS" else 0.2
+def execute_model(dataset_name, df, features, target):
+    # Data Split (70/30 for Iris, 80/20 for Popout)
+    test_size = 0.3 if dataset_name == "IRIS" else 0.2
     train_df, test_df = custom_train_test_split(df, test_size=test_size)
     
-    print(f"\n📊 Distribuição dos Dados ({nome_dataset}):")
+    print(f"\n📊 Distribuição dos Dados ({dataset_name}):")
     print(f"  -> Total de amostras: {len(df)}")
     print(f"  -> Treino: {len(train_df)} amostras")
     print(f"  -> Teste:  {len(test_df)} amostras\n")
     
-    # PERGUNTAS INTERATIVAS
-    resp_multi = input(f"Deseja testar múltiplas profundidades para o {nome_dataset}? (s/n): ").strip().lower()
+    # INTERACTIVE QUESTIONS
+    multi_response = input(f"Deseja testar múltiplas profundidades para o {dataset_name}? (s/n): ").strip().lower()
     
-    if resp_multi == 's':
-        padrao = "2,4,6,8,10,14,18,24,30,40,50,None"
-        str_depths = input(f"Introduza as profundidades separadas por vírgula\n(Pressione Enter para usar o padrão: {padrao}): ").strip()
-        if not str_depths:
-            str_depths = padrao
-        depths_to_test = parse_depths(str_depths)
+    if multi_response == 's':
+        default_pattern = "2,4,6,8,10,14,18,24,30,40,50,None"
+        depths_str = input(f"Introduza as profundidades separadas por vírgula\n(Pressione Enter para usar o padrão: {default_pattern}): ").strip()
+        if not depths_str:
+            depths_str = default_pattern
+        depths_to_test = parse_depths(depths_str)
     else:
-        resp_prof = input("Introduza a profundidade única desejada (ou deixe em branco para 'None'): ").strip()
-        depths_to_test = parse_depths(resp_prof) if resp_prof else [None]
+        depth_response = input("Introduza a profundidade única desejada (ou deixe em branco para 'None'): ").strip()
+        depths_to_test = parse_depths(depth_response) if depth_response else [None]
         
-    resp_print = input("Deseja imprimir a(s) árvore(s) gerada(s) no terminal? (s/n): ").strip().lower()
-    print_trees = (resp_print == 's')
+    print("\nComo deseja visualizar a(s) árvore(s)?")
+    print("[1] Apenas no Terminal")
+    print("[2] Gráfico (Ideal para Notebooks)")
+    print("[3] Ambos (Terminal e Gráfico)")
+    print("[0] Não imprimir árvore")
+    print_response = input("Escolha (0-3): ").strip()
     
-    # Chama o motor principal de treino e avaliação
-    treinar_e_avaliar(nome_dataset, train_df, test_df, features, target, depths_to_test, print_trees)
+    display_mode = 'none'
+    if print_response == '1':
+        display_mode = 'terminal'
+    elif print_response == '2':
+        display_mode = 'plot'
+    elif print_response == '3':
+        display_mode = 'both'
+    
+    # Call the main training and evaluation engine
+    train_and_evaluate(dataset_name, train_df, test_df, features, target, depths_to_test, display_mode)
 
-def executar_iris():
-    print("\n=== A PREPARAR MODELO IRIS ===")
-    try:
-        df_iris = pd.read_csv('iris.csv')
-        if 'ID' in df_iris.columns:
-            df_iris = df_iris.drop(columns=['ID'])
-            
-        features_iris = ['sepallength', 'sepalwidth', 'petallength', 'petalwidth']
-        target_iris = 'class'
-
-        df_iris_discrete = discretize_features(df_iris, features_iris)
-        executar_modelo("IRIS", df_iris_discrete, features_iris, target_iris)
+def load_iris_data():
+    """Carrega, limpa e discretiza os dados do Iris numa só função."""
+    df_iris = pd.read_csv('iris.csv')
+    
+    if 'ID' in df_iris.columns:
+        df_iris = df_iris.drop(columns=['ID'])
         
-    except FileNotFoundError:
-        print("❌ ERRO: Ficheiro 'iris.csv' não encontrado.")
+    features_iris = ['sepallength', 'sepalwidth', 'petallength', 'petalwidth']
+    target_iris = 'class'
 
-def executar_popout():
-    print("\n=== A PREPARAR MODELO POPOUT ===")
-    try:
-        df_popout = pd.read_csv('popout_dataset_winners.csv')
-        features_popout = [f"c_{r}_{c}" for r in range(6) for c in range(7)]
-        target_popout = 'move'
+    # Lógica de discretização embutida diretamente aqui
+    print("\n--- Limites de Discretização (Valores de Corte) ---")
+    for col in features_iris:
+        df_iris[col], bins = pd.qcut(df_iris[col], q=3, labels=['Baixo', 'Médio', 'Alto'], retbins=True, duplicates='drop')
+        print(f"Feature: '{col}' | Baixo: <= {bins[1]:.2f} | Médio: <= {bins[2]:.2f} | Alto: <= {bins[3]:.2f}")
+    print("---------------------------------------------------")
+    
+    return df_iris, features_iris, target_iris
 
-        executar_modelo("POPOUT", df_popout, features_popout, target_popout)
-        
-    except FileNotFoundError:
-        print("❌ ERRO: Ficheiro 'popout_dataset_winners.csv' não encontrado.")
+def load_popout_data():
+    """Apenas carrega e devolve os dados do Popout."""
+    df_popout = pd.read_csv('popout_dataset_winners.csv')
+    features_popout = [f"c_{r}_{c}" for r in range(6) for c in range(7)]
+    target_popout = 'move'
+
+    return df_popout, features_popout, target_popout
 
 # ==========================================
 # 6. MENU PRINCIPAL
@@ -252,12 +335,36 @@ if __name__ == "__main__":
         escolha = input("Escolha uma opção: ")
         
         if escolha == '1':
-            executar_iris()
+            print("\n=== A PREPARAR DADOS IRIS ===")
+            try:
+                df, features, target = load_iris_data()
+                execute_model("IRIS", df, features, target)
+            except FileNotFoundError:
+                print("❌ ERRO: Ficheiro 'iris.csv' não encontrado na pasta atual.")
+                
         elif escolha == '2':
-            executar_popout()
+            print("\n=== A PREPARAR DADOS POPOUT ===")
+            try:
+                df, features, target = load_popout_data()
+                execute_model("POPOUT", df, features, target)
+            except FileNotFoundError:
+                print("❌ ERRO: Ficheiro 'popout_dataset_winners.csv' não encontrado na pasta atual.")
+                
         elif escolha == '3':
-            executar_iris()
-            executar_popout()
+            print("\n=== A PREPARAR DADOS IRIS ===")
+            try:
+                df_iris, features_iris, target_iris = load_iris_data()
+                execute_model("IRIS", df_iris, features_iris, target_iris)
+            except FileNotFoundError:
+                print("❌ ERRO: Ficheiro 'iris.csv' não encontrado.")
+                
+            print("\n=== A PREPARAR DADOS POPOUT ===")
+            try:
+                df_popout, features_popout, target_popout = load_popout_data()
+                execute_model("POPOUT", df_popout, features_popout, target_popout)
+            except FileNotFoundError:
+                print("❌ ERRO: Ficheiro 'popout_dataset_winners.csv' não encontrado.")
+                
         elif escolha == '0':
             print("A encerrar o programa...")
             break
