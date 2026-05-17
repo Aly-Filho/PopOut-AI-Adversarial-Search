@@ -1,0 +1,28 @@
+{
+    "petallength": {
+        "Médio": {
+            "petalwidth": {
+                "Médio": "Iris-versicolor",
+                "Alto": {
+                    "sepalwidth": {
+                        "Médio": "Iris-virginica",
+                        "Baixo": "Iris-virginica"
+                    }
+                }
+            }
+        },
+        "Baixo": "Iris-setosa",
+        "Alto": {
+            "petalwidth": {
+                "Alto": {
+                    "sepalwidth": {
+                        "Baixo": "Iris-virginica",
+                        "Médio": "Iris-virginica",
+                        "Alto": "Iris-virginica"
+                    }
+                },
+                "Médio": "Iris-virginica"
+            }
+        }
+    }
+}
