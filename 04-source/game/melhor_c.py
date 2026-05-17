@@ -265,38 +265,6 @@ def mcts_vanilla_best_move(board, iterations=10000, c=1.414):
     return max(root.children, key=lambda n: n.visits).move
 
 
-def mcts_best_move(board, iterations=10000, c=1.414):
-    ai_piece = board.current_player
-    instant_win = _find_winning_move(board)
-    if instant_win: return instant_win
-    instant_block = _find_blocking_move(board)
-    if instant_block: return instant_block
-    root = Node(board.copy())
-    for _ in range(iterations):
-        node = root
-        while node.is_fully_expanded() and not node.is_terminal():
-            node = node.best_child(c)
-        if not node.is_terminal() and node.untried_moves:
-            move = random.choice(node.untried_moves)
-            node.untried_moves.remove(move)
-            new_board = node.board.copy()
-            new_board.apply_move(move)
-            child = Node(new_board, parent=node, move=move)
-            node.children.append(child)
-            node = child
-        result = _rollout(node.board, ai_piece)
-        backprop_node = node
-        while backprop_node is not None:
-            backprop_node.visits += 1
-            if backprop_node.player_who_just_moved == ai_piece:
-                backprop_node.wins += result
-            elif backprop_node.player_who_just_moved is not None:
-                backprop_node.wins += (1.0 - result)
-            backprop_node = backprop_node.parent
-    if not root.children:
-        return board.get_valid_moves()[0]
-    return max(root.children, key=lambda n: n.visits).move
-
 
 # ============================================================
 # ARENA
@@ -338,7 +306,7 @@ def simulate_match(p1_name, p1_func, p2_name, p2_func):
 # CALIBRAÇÃO DO C — MULTIPROCESSING
 # ============================================================
 
-def _jogar_uma_partida(args):
+def play_a_match(args):
     nome_c1, c1, nome_c2, c2, iterations, c1_e_X = args
     f_c1 = lambda b: mcts_vanilla_best_move(b, iterations=iterations, c=c1)
     f_c2 = lambda b: mcts_vanilla_best_move(b, iterations=iterations, c=c2)
@@ -354,7 +322,7 @@ def _jogar_uma_partida(args):
         return 'empate'
 
 
-def avaliar_confronto_c(c1, c2, num_jogos_por_lado=50, iterations=2000, num_cores=10):
+def avaliar_confronto_c(c1, c2, num_jogos_por_lado=50, iterations=10000, num_cores=10):
     nome_c1 = f"MCTS_C_{c1:.4f}"
     nome_c2 = f"MCTS_C_{c2:.4f}"
     tarefas = []
@@ -364,7 +332,7 @@ def avaliar_confronto_c(c1, c2, num_jogos_por_lado=50, iterations=2000, num_core
         tarefas.append((nome_c1, c1, nome_c2, c2, iterations, False))
     print(f"  -> {len(tarefas)} jogos no total ({num_cores} cores)...")
     with multiprocessing.Pool(processes=num_cores) as pool:
-        resultados = pool.map(_jogar_uma_partida, tarefas)
+        resultados = pool.map(play_a_match, tarefas)
     vitorias_c1 = sum(1 for r in resultados if r == 'c1')
     vitorias_c2 = sum(1 for r in resultados if r == 'c2')
     empates     = sum(1 for r in resultados if r == 'empate')
